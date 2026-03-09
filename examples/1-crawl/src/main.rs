@@ -2,24 +2,17 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-
 fn walk_path(path: &Path) {
     if path.is_file() {
          println!("{}", path.display());
          return;
     } else if path.is_dir() {
-    
-        match fs::read_dir(path) {
-            Err(err) => println!("{}", err),
-            Ok(entries) => entries.for_each(|entry| {
-                match entry {
-                    Ok(p) => walk_path(p.path().as_path()),
-                    Err(_) => (),       
-                };
-            }), 
-        }
+        let _ = fs::read_dir(path).map(|entries| {
+            let _ = entries.map(|entry| {
+                let _ = entry.map(|p| walk_path(p.path().as_path()));
+            });
+        });
     }
-
 }
 
 fn main() {
