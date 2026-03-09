@@ -69,6 +69,10 @@ pub fn parse_df_output(input: &str) -> Vec<Filesystem> {
         debug!("skipping that is empty");
       continue;
     }
+    if std::path::Path::new(line).has_root() == false {
+        debug!("skipping that is not a path: {line}");
+      continue;
+    }
     let mut parts = line.split_whitespace();
     let filesystem = parts.next().unwrap().to_string();
     let size = parts.next().unwrap().to_string();
@@ -96,7 +100,7 @@ pub fn which_executable(command: &str) -> String {
 }
 
 pub fn run_df(path: &str) -> serde_json::Value {
-    let command = "idf";
+    let command = "df"; //"idf";
     let output = run_command(command);
     if output.is_empty() {
         error!("No output from command: {command}");
