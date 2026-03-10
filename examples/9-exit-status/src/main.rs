@@ -7,6 +7,14 @@ use std::os::unix::fs::PermissionsExt;
 // load the regex-fules.json file to provide configs
 const JSON: &str = include_str!("../rules.json");
 
+#[non_exhaustive]
+struct ErrorCodes;
+impl ErrorCodes {
+    pub const NONE: i32 = 0;
+    pub const UNEXPECTED: i32 = 1;
+    pub const PERMISSIONS: i32 = 2;
+    pub const MISSING: i32 = 3;
+}
 
 #[derive(Deserialize, Debug, Clone)]
 struct ComplianceRule {
@@ -42,7 +50,7 @@ fn load_rules() -> Result<Vec<ComplianceRule>, serde_json::Error> {
 }
 
 fn run_rule_on_paths(rule: &ComplianceRule, paths: glob::Paths) -> Result<HashSet<PathBuf>, i32> {
-    let init = (HashSet::<PathBuf>::new(), 0);
+    let init = (HashSet::<PathBuf>::new(), ErrorCodes::NONE);
     let (results, code) = paths.fold(init, |(seen, exit_code), curr| {
         if exit_code > 0 {
             return (seen, exit_code);
@@ -61,7 +69,7 @@ fn run_rule_on_paths(rule: &ComplianceRule, paths: glob::Paths) -> Result<HashSe
                 let metadata = path_buff.metadata();
                 let next_code = match metadata {
                     Err(_) => 1,
-                    Ok(data) => if data.mode() != rule.file_permissions {3} else {exit_code}
+                    Ok(data) => if data.mode() != rule.file_permissions {ErrorCodes::PERMISSIONS} else {exit_code}
                 };
 
                 (next_seen, next_code)
@@ -78,12 +86,13 @@ fn run_rule_on_paths(rule: &ComplianceRule, paths: glob::Paths) -> Result<HashSe
 
 fn run_rules(rules: Vec<ComplianceRule>) -> Result<(), i32> {
     if let Some((rule, rest)) = rules.split_first() {
-        let entry = glob(&rule.path_regex).map_err(|_| 1)?;
+        let entry = glob(&rule.path_regex).map_err(|_| ErrorCodes::UNEXPECTED)?;
         let checked_files_path_buff = run_rule_on_paths(rule, entry)?;
         let checked_files_str = checked_files_path_buff.iter().filter_map(|pb| pb.as_path().to_str()).collect::<HashSet<&str>>();
         let all_found = rule.required_files.iter().all(|req| checked_files_str.contains(req.as_str()));
         if !all_found {
-            return Err(3);
+            println!("Missing files {:?}", rule.required_files);
+            return Err(ErrorCodes::MISSING);
         }
         return run_rules(rest.to_vec());
     } 
@@ -92,7 +101,7 @@ fn run_rules(rules: Vec<ComplianceRule>) -> Result<(), i32> {
 }
 
 fn main() {
-    let mut exit_code: i32 = 0;
+    let mut exit_code: i32 = ErrorCodes::NONE;
     let rules = load_rules().map_or_else(|_| {
         exit_code = 1;
         return Vec::new();
