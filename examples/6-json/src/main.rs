@@ -10,14 +10,16 @@ struct ComplianceRule {
     path_regex: String,
     file_permissions: u32,
     required_files: Vec<String>,
+    non_existent_files: Vec<String>,
 }
 
 impl ComplianceRule {
-    fn new(path_regex: String, file_permissions: u32, required_files: Vec<String>) -> Self {
+    fn new(path_regex: String, file_permissions: u32, required_files: Vec<String>, non_existent_files: Vec<String>) -> Self {
         Self {
             path_regex,
             file_permissions,
             required_files,
+            non_existent_files
         }
     }
 }
@@ -32,6 +34,7 @@ fn load_rules() -> Vec<ComplianceRule> {
             rule.path_regex,
             rule.file_permissions,
             rule.required_files,
+            rule.non_existent_files,
         ));
     }
     rules
